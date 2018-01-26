@@ -1,8 +1,8 @@
 package main // probably need to convert this to a proper go test
 
 import (
-	"Inf191BloomFilter/bloomDataGenerator"
-	"Inf191BloomFilter/databaseAccessObj"
+	"github.com/vlam321/inf191BloomFilter/bloomDataGenerator"
+	"github.com/vlam321/inf191BloomFilter/databaseAccessObj"
 	"flag"
 	"fmt"
 	"os"

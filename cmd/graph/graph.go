@@ -3,7 +3,7 @@ package main
 import "fmt"
 import "github.com/marpaia/graphite-golang"
 
-import "Inf191BloomFilter/databaseAccessObj"
+import "github.com/vlam321/inf191BloomFilter/databaseAccessObj"
 
 func checkErr(err error) {
 	if err != nil {

@@ -15,13 +15,14 @@ API endpoints to access the following functionalities:
 package main
 
 import (
-	"Inf191BloomFilter/bloomManager"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/vlam321/Inf191BloomFilter/bloomManager"
 )
 
 type payload struct {

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"Inf191BloomFilter/bloomDataGenerator"
-	"Inf191BloomFilter/bloomManager"
-	"Inf191BloomFilter/databaseAccessObj"
+	"github.com/vlam321/inf191BloomFilter/bloomDataGenerator"
+	"github.com/vlam321/inf191BloomFilter/bloomManager"
+	"github.com/vlam321/inf191BloomFilter/databaseAccessObj"
 	"bytes"
 	"encoding/json"
 	"fmt"
