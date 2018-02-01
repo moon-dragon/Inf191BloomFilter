@@ -1,64 +1,60 @@
-/* Primary script for running unit tests for the databaseAccessObj.
-For running all the test cases, use the following command:
-	
-	go test databaseAccessObj_test.go databaseAccessObj.go
-
-The above command will not show any print statements or
-detail about specific tests. If you want to see those, use the -v flag,
-like so:
-	
-	go test -v databaseAccessObj_test.go databaseAccessObj.go
-*/
+// Primary script for running unit tests for the databaseAccessObj.
 
 package databaseAccessObj
 
 import (
-	"time"
-	"fmt"
 	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 )
 
-const dsn = "bloom:test@/unsubscribed"
+func TestConnection(t *testing.T) {
+	db := New()
+	defer db.CloseConnection()
+}
 
-func TestMain(m *testing.M){
-	db := New(dsn)
+func TestHasTable(t *testing.T) {
+	db := New()
+	defer db.CloseConnection()
 	db.Clear()
-	m.Run()
-	db.CloseConnection()
-}
-
-func TestConnection(t *testing.T){
-	db := New(dsn)
-	db.CloseConnection()
-}
-
-func TestHasTable(t *testing.T){
-	db := New(dsn)
 	assert.True(t, db.hasTable("unsubscribed", "unsub_0"))
 	assert.False(t, db.hasTable("unsubscribed", "nothere"))
 	assert.False(t, db.hasTable("unsubscribed", "nothereeither"))
 	assert.False(t, db.hasTable("unsubscribed", "nope"))
-	db.CloseConnection()
 }
 
-func TestInsertAndSelect(t *testing.T){
-	db := New(dsn)
+func TestInsertAndSelect(t *testing.T) {
+	db := New()
+	defer db.CloseConnection()
+	db.Clear()
 	testData := make(map[int][]string)
-	testData[0] = []string{"a","b","c"}
-	testData[16] = []string{"d","e","f","g"}
+	testData[0] = []string{"a", "b", "c"}
+	testData[16] = []string{"d", "e", "f", "g"}
 	db.Insert(testData)
 	result := db.Select(testData)
 	assert.Equal(t, testData, result)
-	db.CloseConnection()
 }
 
-func TestSelectTable(t *testing.T){
-	db := New(dsn)
+func TestSelectRandSubset(t *testing.T) {
+	db := New()
+	defer db.CloseConnection()
+	db.Clear()
 	testData := make(map[int][]string)
-	testData[3] = []string{"h","i","j"}
-	testData[18] = []string{"k","l","m","n","o"}
-	testData[23] = []string{"p","q","r","s"}
+	testData[0] = [] string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"}
+	db.Insert(testData)
+	result := db.SelectRandSubset(0, 4)
+	assert.Equal(t, 4, len(result[0]))
+}
+
+func TestSelectTable(t *testing.T) {
+	db := New()
+	defer db.CloseConnection()
+	db.Clear()
+	testData := make(map[int][]string)
+	testData[3] = []string{"h", "i", "j"}
+	testData[18] = []string{"k", "l", "m", "n", "o"}
+	testData[23] = []string{"p", "q", "r", "s"}
 	testDataShard3 := make(map[int][]string)
 	testDataShard3[3] = testData[3]
 	testDataShard3[18] = testData[18]
@@ -69,15 +65,16 @@ func TestSelectTable(t *testing.T){
 	assert.Equal(t, testDataShard3, result)
 	result = db.SelectTable(8)
 	assert.Equal(t, testDataShard8, result)
-	db.CloseConnection()
 }
 
-func TestSelectByTimestamp(t *testing.T){
-	db := New(dsn)
+func TestSelectByTimestamp(t *testing.T) {
+	db := New()
+	defer db.CloseConnection()
+	db.Clear()
 	testData := make(map[int][]string)
-	testData[6] = []string{"t","u","v","w"}
+	testData[6] = []string{"t", "u", "v", "w"}
 	testData2 := make(map[int][]string)
-	testData2[6] = []string{"x","y","z"}
+	testData2[6] = []string{"x", "y", "z"}
 	db.Insert(testData)
 	time.Sleep(time.Second)
 	ts := time.Now()
@@ -85,12 +82,5 @@ func TestSelectByTimestamp(t *testing.T){
 	db.Insert(testData2)
 	result := db.SelectByTimestamp(ts)
 	assert.Equal(t, testData2, result)
-	db.CloseConnection()
-}
-
-func BenchmarkInsert(b *testing.B){
-	for i := 0; i < b.N; i++{
-		fmt.Println("bench")
-	}
 }
 
