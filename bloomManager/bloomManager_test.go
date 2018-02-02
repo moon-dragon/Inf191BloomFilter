@@ -1,10 +1,6 @@
 package bloomManager
 
 import (
-<<<<<<< HEAD
-	"github.com/vlam321/inf191BloomFilter/databaseAccessObj"
-=======
->>>>>>> upstream/develop
 	"testing"
 
 	"github.com/vlam321/Inf191BloomFilter/databaseAccessObj"
@@ -47,7 +43,7 @@ func TestGetArrayOfUnsubscribedEmails(t *testing.T) {
 		"juicebar@uci.edu",
 		"ratatouille@hungry.com",
 		"chocolatebar@yahoo.com"}
-	testMap := map[int][]string{0:arrayOfEmails}
+	testMap := map[int][]string{0: arrayOfEmails}
 	bf := New(bitArraySize, numHash)
 	db := databaseAccessObj.New()
 	defer db.CloseConnection()

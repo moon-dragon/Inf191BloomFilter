@@ -1,10 +1,6 @@
 package bloomManager
 
 import (
-<<<<<<< HEAD
-	"github.com/vlam321/inf191BloomFilter/databaseAccessObj"
-=======
->>>>>>> upstream/develop
 	"strconv"
 
 	"github.com/vlam321/Inf191BloomFilter/databaseAccessObj"

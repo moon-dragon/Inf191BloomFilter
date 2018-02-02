@@ -1,5 +1,19 @@
+
+#Add links property to allow containers to connect to eachother 
+#links for container networking 
+
 version: '2'
 services:
+  # bloomRouter:
+  #     image: golang 
+  #     #command: 
+  #     volumes:
+  #       - .:/go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
+  #     working_dir: /go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
+  #     links:
+  #       - mysql
+  #     ports:
+  #       - "9094:9090"
   bloomServer1:
     image: golang
     command: go run ./cmd/bloomFilterServer/bloomFilterServer.go 10000 10
@@ -7,8 +21,8 @@ services:
       - .:/go/src/github.com/vlam321/Inf191BloomFilter
 
     working_dir: /go/src/github.com/vlam321/Inf191BloomFilter
-    links:
-      - mysql
+    # links:
+    #   - mysql
     ports:
       - "9091:9090"
     
@@ -18,8 +32,8 @@ services:
     volumes:
       - .:/go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
     working_dir: /go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
-    links:
-      - mysql
+    # links:
+    #   - mysql
     ports:
       - "9092:9090"
 
@@ -29,21 +43,12 @@ services:
     volumes:
       - .:/go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
     working_dir: /go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
-    links:
-      - mysql
+    # links:
+    #   - mysql
     ports:
       - "9093:9090"
 
-  bloomRouter:
-    image: golang 
-    #command: 
-    volumes:
-      - .:/go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
-    working_dir: /go/src/github.com/vlam321/github.com/vlam321/inf191BloomFilter
-    links:
-      - mysql
-    ports:
-      - "9094:9090"
+  
 
 #Commenting out mysql image b/c using Amazon RDS 
   # mysql:
