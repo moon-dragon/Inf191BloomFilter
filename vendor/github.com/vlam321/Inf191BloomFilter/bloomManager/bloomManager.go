@@ -66,6 +66,7 @@ func (bf *BloomFilter) RepopulateBloomFilter(tableNum int) {
 		}
 	}
 	bf.bloomFilter = newBloomFilter.Copy()
+	log.Printf("UPDATED: currently using %v hash functions and bit array len of %v.\n", bf.bloomFilter.K(), bf.bloomFilter.Cap())
 }
 
 // filter given a map[int][]string returns items that return true from bf
@@ -90,5 +91,14 @@ func (bf *BloomFilter) GetArrayOfUnsubscribedEmails(dataSet map[int][]string) ma
 	db := databaseAccessObj.New()
 	defer db.CloseConnection()
 	result := db.Select(filtered)
+	return result
+}
+
+// QueryUnsubscribed given a map[int][]string will query the db and return a map[int][]string of those
+// that exist in the db
+func (bf *BloomFilter) QueryUnsubscribed(dataSet map[int][]string) map[int][]string {
+	db := databaseAccessObj.New()
+	defer db.CloseConnection()
+	result := db.Select(dataSet)
 	return result
 }

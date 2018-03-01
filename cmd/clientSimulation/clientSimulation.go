@@ -1,21 +1,23 @@
 package main
 
 import (
-	"github.com/vlam321/Inf191BloomFilter/bloomDataGenerator"
-	"github.com/vlam321/Inf191BloomFilter/databaseAccessObj"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
+
+	"github.com/vlam321/Inf191BloomFilter/bloomDataGenerator"
+	"github.com/vlam321/Inf191BloomFilter/databaseAccessObj"
+	"github.com/vlam321/Inf191BloomFilter/payload"
 
 	"github.com/cyberdelia/go-metrics-graphite"
 	metrics "github.com/rcrowley/go-metrics"
 )
-
-const membershipEndpoint = "http://localhost:9090/filterUnsubscribed"
 
 type Payload struct {
 	UserId int
@@ -43,36 +45,39 @@ func makeMap(emails []string) map[string]bool {
 // checkResult takes in the expected and actual values and
 // calculate the hit and miss ratio and sends the data to
 // graphite
-func checkResult(unsubbed, subbed, res map[int][]string) {
+func checkResult(unsubbed, subbed map[int][]string, res []string) {
 	unsubbedMap := makeMap(unsubbed[0])
 	subbedMap := makeMap(subbed[0])
 	hit := 0
 	miss := 0
-	for i := range res[0] {
-		if ok := (unsubbedMap[res[0][i]] && !subbedMap[res[0][i]]); ok {
+	for i := range res {
+		if ok := (unsubbedMap[res[i]] && !subbedMap[res[i]]); ok {
 			hit += 1
 		} else {
 			miss += 1
 		}
 	}
-	if len(unsubbedMap) > len(res[0]) {
-		miss += len(unsubbedMap) - len(res[0])
+	if len(unsubbedMap) > len(res) {
+		miss += len(unsubbedMap) - len(res)
 	}
 	metrics.GetOrRegisterGauge("result.hit", nil).Update(int64(hit))
 	metrics.GetOrRegisterGauge("result.miss", nil).Update(int64(miss))
 }
 
 // attackBloomFilter hit endpoint with test data
-func attackBloomFilter(dao *databaseAccessObj.Conn, expectedTrues, expectedFalse int) {
-	unsubbed := dao.SelectRandSubset(0, expectedTrues)
+func attackBloomFilter(dao *databaseAccessObj.Conn, expectedTrues, expectedFalse int, routerIP string, userID int) {
+
+	unsubbed := dao.SelectRandSubset(userID, expectedTrues)
 	subbed := bloomDataGenerator.GenData(1, expectedFalse, expectedFalse+501)
 	var dataSum []string
 	dataSum = append(dataSum, unsubbed[0]...)
 	dataSum = append(dataSum, subbed[0]...)
 
-	pyld := Payload{0, dataSum}
+	pyld := Payload{userID, dataSum}
 	jsn := conv2Json(pyld)
 
+	membershipEndpoint := "http://" + routerIP + ":9090/filterUnsubscribed"
+	log.Println(membershipEndpoint)
 	res, _ := http.Post(membershipEndpoint, "application/json; charset=utf-8", bytes.NewBuffer(jsn))
 
 	defer res.Body.Close()
@@ -84,23 +89,23 @@ func attackBloomFilter(dao *databaseAccessObj.Conn, expectedTrues, expectedFalse
 
 	log.Printf("Sent request to filter with payload size of %d emails (expected reponse size = %d emails).", len(dataSum), expectedTrues)
 
-	var result map[int][]string
-	err = json.Unmarshal(body, &result)
+	// var result map[int][]string
+	var temp payload.Payload
+	err = json.Unmarshal(body, &temp)
 	if err != nil {
 		log.Printf("Error unmarshaling body: %v\n", err)
 		return
 	}
-	metrics.GetOrRegisterGauge("request.hit", nil).Update(int64(len(result[0])))
-	metrics.GetOrRegisterGauge("request.miss", nil).Update(int64(len(dataSum) - len(result[0])))
-
-	checkResult(unsubbed, subbed, result)
+	// metrics.GetOrRegisterGauge("request.hit", nil).Update(int64(len(result[0])))
+	// metrics.GetOrRegisterGauge("request.miss", nil).Update(int64(len(dataSum) - len(result[0])))
+	checkResult(unsubbed, subbed, temp.Emails)
 }
 
 // sendRequest attackBloomFilter every ms
-func sendRequest(dao *databaseAccessObj.Conn, ms int32) {
+func sendRequest(dao *databaseAccessObj.Conn, ms int32, routerIP string, userID int) {
 	ticker := time.NewTicker(time.Duration(ms) * time.Millisecond)
 	for _ = range ticker.C {
-		attackBloomFilter(dao, 2000, 500)
+		attackBloomFilter(dao, 2000, 500, routerIP, userID)
 	}
 }
 
@@ -108,7 +113,18 @@ func main() {
 	dao := databaseAccessObj.New()
 	defer dao.CloseConnection()
 	addr, _ := net.ResolveTCPAddr("tcp", "192.168.99.100:2003")
+	// use host with the  "metrics" to differentiate different nodes
+	// host, _ := os.Hostname()
 	go graphite.Graphite(metrics.DefaultRegistry, 10e9, "metrics", addr)
-	go sendRequest(dao, 2000)
+	routerIP := os.Getenv("ROUTER_IP")
+	userIDRange, err := strconv.Atoi(os.Getenv("USERID_RANGE"))
+	if err != nil {
+		log.Printf("Client simulator: %v\n", err.Error())
+	}
+	log.Printf("ATTACKING ROUTER @ %s", routerIP)
+	for i := 0; i < userIDRange; i++ {
+		go sendRequest(dao, 2000, routerIP, i)
+	}
+
 	http.ListenAndServe(":9091", nil)
 }

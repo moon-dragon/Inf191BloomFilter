@@ -6,6 +6,8 @@ import (
 	"math"
 	"strconv"
 	"time"
+	"strings"
+	"fmt"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/spf13/viper"
@@ -13,10 +15,6 @@ import (
 
 // dbShards number of shards in database
 const dbShards int = 15
-
-// dsn username:password@/database used to login to MySQL db
-//const dsn string = "bloom:test@/unsubscribed"
-const dsn string = "root@mysql"
 
 // Update struct that holds db object
 type Conn struct {
@@ -54,7 +52,7 @@ func New() *Conn {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Printf("Database access object: %v\n", err)
+		log.Printf("Database access object: %v\n", err.Error())
 	}
 
 	cfg := mysql.Config{
@@ -142,7 +140,6 @@ func (conn *Conn) SelectRandSubset(tblNum, size int) map[int][]string {
 		err = rows.Scan(&user_id, &email)
 		if err != nil {
 			log.Printf("Error scanning row: %v\n", err)
-			return nil
 		}
 		result[user_id] = append(result[user_id], email)
 	}
@@ -156,9 +153,30 @@ func (conn *Conn) Select(dataSet map[int][]string) map[int][]string {
 
 	for userid, emails := range dataSet {
 		tableName := "unsub_" + strconv.Itoa(modId(userid))
-		sqlStr := "SELECT user_id, email FROM " + tableName + " WHERE user_id = ? and email = ?"
-		stmt, err := db.Prepare(sqlStr)
-		defer stmt.Close()
+		//sqlStr := "SELECT email FROM " + tableName + " WHERE user_id = ? and email = ?"
+		sqlStr := fmt.Sprintf("SELECT email FROM %s WHERE user_id = ? and email IN (%s)",
+					tableName,
+					fmt.Sprintf("?"+strings.Repeat(",?", len(emails)-1)))
+
+		args := make([]interface{}, len(emails)+1)
+		args[0] = userid
+
+		for i, email := range emails{
+			args[i+1] = email
+		}
+		rows, err := db.Query(sqlStr, args...)
+		if err != nil{
+			log.Printf("Error querying db: %v\n", err)
+		}
+		var email string
+		for rows.Next(){
+			err = rows.Scan(&email)
+			if err != nil{
+				log.Printf("Error scanning row: %v\n", err)
+			}
+			result[userid] = append(result[userid], email)
+		}
+/*
 		if err != nil {
 			log.Printf("Error preparing statement", err)
 			return nil
@@ -178,6 +196,7 @@ func (conn *Conn) Select(dataSet map[int][]string) map[int][]string {
 			}
 			result[user_id] = append(result[user_id], email)
 		}
+		*/
 	}
 	return result
 }
@@ -332,6 +351,17 @@ func (conn *Conn) SelectTestResults() []Metrics {
 	return result
 }
 
+func (conn *Conn) Delete(tableNum, rows int) {
+	db := conn.db
+	tableName := "unsub_" + strconv.Itoa(modId(tableNum))
+	_, err := db.Exec("DELETE FROM " + tableName + " WHERE user_id=" + strconv.Itoa(tableNum) + " LIMIT " + strconv.Itoa(rows) + ";")
+	if err != nil {
+		log.Printf("Error clearing tables: %v\n", err)
+		return
+	}
+}
+
+/*
 // Delete removes all items in db matching to dataSet
 func (conn *Conn) Delete(dataSet map[int][]string) {
 	db := conn.db
@@ -358,6 +388,7 @@ func (conn *Conn) Delete(dataSet map[int][]string) {
 		}
 	}
 }
+*/
 
 // Get the size or number of rows of the table
 func (conn *Conn) GetTableSize(tableNum int) int {
@@ -365,7 +396,7 @@ func (conn *Conn) GetTableSize(tableNum int) int {
 	sqlStr := "SELECT COUNT(*) FROM unsub_" + strconv.Itoa(tableNum) + ";"
 	rows, err := db.Query(sqlStr)
 	if err != nil {
-		log.Printf("Error: Unable to query count. %v\n", err)
+		log.Printf("Error: Unable to query count. %v\n", err.Error())
 	}
 	defer rows.Close()
 
@@ -373,7 +404,7 @@ func (conn *Conn) GetTableSize(tableNum int) int {
 	for rows.Next() {
 		err = rows.Scan(&count)
 		if err != nil {
-			log.Printf("Error: Unable to scan row counts %v\n", err)
+			log.Printf("Error: Unable to scan row counts %v\n", err.Error())
 		}
 	}
 	return count

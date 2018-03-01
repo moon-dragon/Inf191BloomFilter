@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	graphite "github.com/marpaia/graphite-golang"
 	"github.com/spf13/viper"
 	"github.com/vlam321/Inf191BloomFilter/bloomManager"
 	"github.com/vlam321/Inf191BloomFilter/databaseAccessObj"
@@ -36,45 +38,16 @@ import (
 var bf *bloomManager.BloomFilter
 var shard int
 
-/*
+// FOR TESTING ONLY
 //handleUpdate will update the respective bloomFilter
 //server will keep track of when the last updated time is. to call
 //update every _ time.
 func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Received request: %v %v %v\n", r.Method, r.URL, r.Proto)
-	bf.RepopulateBloomFilter(viper.GetInt(bfIP))
-}
-*/
-
-// handleMetric records metrics (temporary method?)
-func handleMetric(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		log.Printf("1")
-		return
-	}
-	u := r.Form["user"]
-	if len(u) == 0 {
-		log.Printf("2")
-		return
-	}
-
-	uid, err := strconv.Atoi(u[0])
-	if err != nil {
-		log.Printf("3")
-		return
-	}
-	metrics.GetOrRegisterGauge("userid.gauge", nil).Update(int64(uid))
-	metrics.GetOrRegisterCounter("userid.counter", nil).Inc(1)
-	if err != nil {
-		log.Printf("5")
-		return
-	}
-
-	log.Printf("user id  = %d\n", uid)
+	bf.RepopulateBloomFilter(shard)
 }
 
-// handleFilterUnsubscribed 
+// handleFilterUnsubscribed
 func handleFilterUnsubscribed(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Received request: %v %v %v\n", r.Method, r.URL, r.Proto)
 	bytes, err := ioutil.ReadAll(r.Body)
@@ -93,6 +66,39 @@ func handleFilterUnsubscribed(w http.ResponseWriter, r *http.Request) {
 	//uses bloomManager to get the result of unsubscribed emails
 	//puts them in struct, result
 	filteredResults := bf.GetArrayOfUnsubscribedEmails(map[int][]string{pl.UserId: pl.Emails})
+	results := payload.Payload{pl.UserId, filteredResults[pl.UserId]}
+
+	jsn, err := json.Marshal(results)
+	if err != nil {
+		log.Printf("Error marshaling filtered emails. %v\n", err)
+		return
+	}
+
+	metrics.GetOrRegisterCounter("request.numreq", nil).Inc(1)
+	//write back to client
+	w.Write(jsn)
+}
+
+// handleQueryUnsubscribed
+func handleQueryUnsubscribed(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("Received request: %v %v %v\n", r.Method, r.URL, r.Proto)
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: Unable to read request data. %v\n", err)
+		return
+	}
+
+	var pl payload.Payload
+	err = json.Unmarshal(bytes, &pl)
+	if err != nil {
+		log.Printf("Error: Unable to unmarshal Payload. %v\n", err)
+		return
+	}
+
+	//uses bloomManager to get the result of unsubscribed emails
+	//puts them in struct, result
+	fmt.Printf("Querying database without filtering...")
+	filteredResults := bf.QueryUnsubscribed(map[int][]string{pl.UserId: pl.Emails})
 	results := payload.Payload{pl.UserId, filteredResults[pl.UserId]}
 
 	jsn, err := json.Marshal(results)
@@ -143,7 +149,7 @@ func getMyIP() (string, error) {
 }
 
 func mapBf2Shard() error {
-	viper.SetConfigName("bfShardConf")
+	viper.SetConfigName("bfIPConf")
 	viper.AddConfigPath("settings")
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -153,13 +159,7 @@ func mapBf2Shard() error {
 }
 
 func main() {
-	bfIP, err := getMyIP()
-	if err != nil {
-		log.Printf("BloomFilter: %v\n", err)
-		return
-	}
-
-	err = mapBf2Shard()
+	err := mapBf2Shard()
 	if err != nil {
 		log.Printf("BloomFilter: %v\n", err)
 		return
@@ -171,8 +171,11 @@ func main() {
 			log.Printf("Bloom Filter: %v\n", err)
 		}
 		shard = tabnum
-	} else if viper.GetString("host") == "ec2" {
-		shard = viper.GetInt(bfIP)
+	} else if viper.GetString("host") == "ecs" {
+		shard, err = strconv.Atoi(os.Getenv("SHARD"))
+		if err != nil {
+			log.Printf("Bloom Filter: %v\n", err)
+		}
 	} else {
 		log.Printf("BloomFilter: Invalid host config.")
 		return
@@ -182,21 +185,20 @@ func main() {
 	log.Printf("HOSTING ON: %s\n", viper.GetString("host"))
 	log.Printf("USING SHARD: %d\n", shard)
 
-	// addr, _ := net.ResolveTCPAddr("tcp", "192.168.99.100:2003")
-	// go graphite.Graphite(metrics.DefaultRegistry, 10e9, "metrics", addr)
+	addr, _ := net.ResolveTCPAddr("tcp", "192.168.99.100:2003")
+	go graphite.Graphite(metrics.DefaultRegistry, 10e9, "metrics", addr)
 
-	// bf.RepopulateBloomFilter()
 	dao := databaseAccessObj.New()
 	defer dao.CloseConnection()
 
 	setBloomFilter(dao)
-
+	bf.RepopulateBloomFilter(shard)
 	//Run go routine to make periodic updates
 	//Runs until the server is stopped
-	go updateBloomFilterBackground(dao)
+	//go updateBloomFilterBackground(dao)
 
-	// http.HandleFunc("/update", handleUpdate)
-	http.HandleFunc("/metric", handleMetric)
+	http.HandleFunc("/update", handleUpdate)
 	http.HandleFunc("/filterUnsubscribed", handleFilterUnsubscribed)
+	http.HandleFunc("/queryUnsubscribed", handleQueryUnsubscribed)
 	http.ListenAndServe(":9090", nil)
 }

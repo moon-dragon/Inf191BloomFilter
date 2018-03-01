@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/vlam321/Inf191BloomFilter/payload"
 
@@ -51,7 +52,7 @@ var routes map[int]string
 func retrieveEndpoint(userid int) string {
 	var endpoint string
 	if viper.GetString("host") == "ecs" {
-		endpoint = "http://" + routes[userid] + ":9090/filterUnsubscribed"
+		endpoint = "http://" + os.Getenv(routes[userid]) + ":9090/filterUnsubscribed"
 	} else {
 		endpoint = "http://" + viper.GetString("dockerIP") + ":" + routes[userid] + "/filterUnsubscribed"
 	}
@@ -114,11 +115,13 @@ func getBloomFilterIPs() error {
 	}
 
 	if viper.GetString("host") == "ecs" {
+		log.Printf("host: ecs")
 		err = viper.Unmarshal(&bloomContainerNames)
 		if err != nil {
 			return err
 		}
 	} else {
+		log.Printf("host:docker")
 		err = viper.Unmarshal(&bloomServerIPs)
 		if err != nil {
 			return err
@@ -157,5 +160,6 @@ func main() {
 	log.Printf("SUCCESSFULLY MAPPED BLOOM SERVER IPS.")
 
 	http.HandleFunc("/filterUnsubscribed", handleRoute)
+	http.HandleFunc("/queryUnsubscribed", handleRoute)
 	http.ListenAndServe(":9090", nil)
 }
