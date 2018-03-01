@@ -1,4 +1,7 @@
 package main
+package beego
+beego.PprofOn = true
+
 
 import (
 	"bytes"
