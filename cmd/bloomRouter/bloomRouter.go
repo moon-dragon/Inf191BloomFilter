@@ -14,9 +14,11 @@ import (
 
 	"github.com/vlam321/Inf191BloomFilter/payload"
 
+
 	"github.com/fatih/structs"
 	"github.com/spf13/viper"
 )
+
 
 // BloomServerIPs struct holding ips of each bloom filter server; retrieved through getBloomFilterIPs()
 type BloomServerIPs struct {
@@ -44,6 +46,9 @@ type BloomContainerNames struct {
 	BloomFilterContainer9  string
 	BloomFilterContainer10 string
 }
+
+//updateTracker keeps track of which servers are updating currently or not 
+var updateTracker[len(BloomServerIP)]bool
 
 var bloomServerIPs BloomServerIPs
 var bloomContainerNames BloomContainerNames
@@ -87,6 +92,29 @@ func handleRoute(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Router: error reading response from bloom filter. %v\n", err)
 	}
 	w.Write(body)
+}
+
+//handleServerDown() routes requests to query the database if the bloomfilter is currently 
+//being updated 
+func handleServerDown(w http.ResponseWriter, r *http.Request) {
+        fmt.Printf("Recived request: %v %v %v\n", r.Method, r.URL, r.Proto)
+        bytes, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+          log.Printf("Error: Unable to read request data. %v\n", err)
+          return
+        }
+
+        //var to unload the recieved struct of bloomserver id and bool
+        var ub downUpdate.DownUpdate
+        err = json.Unmarshal(bytes, &ub)
+        if err != nil{
+          log.Printf("Error: Unable to unmarshal UpdateDown. %v", err)
+          return
+        }
+
+        //update the array that tracks which server is updated
+        updateTracker[ub.serverId] = ub.down 
+        
 }
 
 // getMyIP() retrieve IP on local host
@@ -160,6 +188,7 @@ func main() {
 	log.Printf("SUCCESSFULLY MAPPED BLOOM SERVER IPS.")
 
 	http.HandleFunc("/filterUnsubscribed", handleRoute)
-	http.HandleFunc("/queryUnsubscribed", handleRoute)
-	http.ListenAndServe(":9090", nil)
+        http.HandleFunc("/queryUnsubscribed", handleRoute)
+	http.HandleFunc("/serverDown", handleServerDown)
+        http.ListenAndServe(":9090", nil)
 }

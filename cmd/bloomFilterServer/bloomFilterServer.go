@@ -15,6 +15,7 @@ API endpoints to access the following functionalities:
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -44,8 +45,32 @@ var myHost string
 //server will keep track of when the last updated time is. to call
 //update every _ time.
 func handleUpdate(w http.ResponseWriter, r *http.Request) {
+	//set ub to this current bloomServer and 1 for being updated
+	var ub payload.DownUpdate
+
+	ub.ServerID = shard
+	ub.Down = 1
+
 	fmt.Printf("Received request: %v %v %v\n", r.Method, r.URL, r.Proto)
+
+	//marshal struct to json
+	jsn, err := json.Marshal(ub)
+	if err != nil {
+		log.Printf("Error marshaling UpdateDown. %v\n", err)
+		return
+	}
+	//look into moving this stuff to the update funciton later
+	//hit the serverdown endpoint
+	http.Post("/ServerDown", "application/json; charset=utf-8", bytes.NewBuffer(jsn))
+
 	bf.RepopulateBloomFilter(shard)
+
+	jsn, err = json.Marshal(ub)
+	if err != nil {
+		log.Printf("Error marshalling UpdateDown. %v\n", err)
+	}
+
+	http.Post("/ServerDown", "application/json; charset=utf-8", bytes.NewBuffer(jsn))
 }
 
 // handleFilterUnsubscribed
