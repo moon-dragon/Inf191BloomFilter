@@ -40,6 +40,9 @@ var bf *bloomManager.BloomFilter
 var shard int
 var myHost string
 
+var updateTracker [len(BloomServerIP)]bool
+
+// $$$ add in code to this one?
 // FOR TESTING ONLY
 //handleUpdate will update the respective bloomFilter
 //server will keep track of when the last updated time is. to call
@@ -73,6 +76,7 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	http.Post("/ServerDown", "application/json; charset=utf-8", bytes.NewBuffer(jsn))
 }
 
+//do same shit was shit i was expalining but he didnt understand
 // handleFilterUnsubscribed
 func handleFilterUnsubscribed(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Received request: %v %v %v\n", r.Method, r.URL, r.Proto)

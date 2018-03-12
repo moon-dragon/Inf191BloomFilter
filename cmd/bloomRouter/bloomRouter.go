@@ -46,9 +46,9 @@ type BloomContainerNames struct {
 	BloomFilterContainer9  string
 	BloomFilterContainer10 string
 }
-
+//moved to bloomFilterServer 
 //updateTracker keeps track of which servers are updating currently or not 
-var updateTracker[len(BloomServerIP)]bool
+// var updateTracker[len(BloomServerIP)]bool
 
 var bloomServerIPs BloomServerIPs
 var bloomContainerNames BloomContainerNames
@@ -94,28 +94,27 @@ func handleRoute(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-//handleServerDown() routes requests to query the database if the bloomfilter is currently 
-//being updated 
-func handleServerDown(w http.ResponseWriter, r *http.Request) {
-        fmt.Printf("Recived request: %v %v %v\n", r.Method, r.URL, r.Proto)
-        bytes, err := ioutil.ReadAll(r.Body)
-        if err != nil {
-          log.Printf("Error: Unable to read request data. %v\n", err)
-          return
-        }
+// //handleServerDown() routes requests to query the database if the bloomfilter is currently 
+// //being updated 
+// func handleServerDown(w http.ResponseWriter, r *http.Request) {
+//         fmt.Printf("Recived request: %v %v %v\n", r.Method, r.URL, r.Proto)
+//         bytes, err := ioutil.ReadAll(r.Body)
+//         if err != nil {
+//           log.Printf("Error: Unable to read request data. %v\n", err)
+//           return
+//         }
 
-        //var to unload the recieved struct of bloomserver id and bool
-        var ub downUpdate.DownUpdate
-        err = json.Unmarshal(bytes, &ub)
-        if err != nil{
-          log.Printf("Error: Unable to unmarshal UpdateDown. %v", err)
-          return
-        }
-
-        //update the array that tracks which server is updated
-        updateTracker[ub.serverId] = ub.down 
+//         //var to unload the recieved struct of bloomserver id and bool
+//         var ub downUpdate.DownUpdate
+//         err = json.Unmarshal(bytes, &ub)
+//         if err != nil{
+//           log.Printf("Error: Unable to unmarshal UpdateDown. %v", err)
+//           return
+//         }
+//         //update the array that tracks which server is updated
+//         updateTracker[ub.serverId] = ub.down 
         
-}
+// }
 
 // getMyIP() retrieve IP on local host
 func getMyIP() (myIP string, err error) {

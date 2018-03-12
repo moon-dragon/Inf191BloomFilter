@@ -53,6 +53,7 @@ func getCommandLineInputs() UserInputs {
 
 // handleRepopulate clears database and populates with random data based on input
 func handleRepopulate(numUser, minEmail, maxEmail int) {
+	//Add in serverdown to funciton
 	dao := databaseAccessObj.New()
 	defer dao.CloseConnection()
 	dao.Clear()

@@ -6,8 +6,6 @@ to the dbServer and bloomFilterServer
 package main
 
 import (
-	"github.com/vlam321/Inf191BloomFilter/bloomDataGenerator"
-	"github.com/vlam321/Inf191BloomFilter/databaseAccessObj"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -15,6 +13,9 @@ import (
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/vlam321/Inf191BloomFilter/bloomDataGenerator"
+	"github.com/vlam321/Inf191BloomFilter/databaseAccessObj"
 
 	"github.com/stretchr/testify/assert"
 )

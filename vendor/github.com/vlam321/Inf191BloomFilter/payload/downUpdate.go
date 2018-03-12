@@ -1,6 +1,6 @@
 package payload
 
 type DownUpdate struct{
-      serverID int
-      down bool 
+      ServerID int
+      Down int 
 }
